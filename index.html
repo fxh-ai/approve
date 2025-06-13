@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BSC代币授权工具</title>
+  <script src="https://cdn.bootcdn.net/ajax/libs/ethers/5.7.2/ethers.umd.js" type="application/javascript"></script>
+  <style>
+    :root {
+      --primary: #f0b90b;
+      --primary-hover: #f8d33a;
+      --background: #0b0e11;
+      --card-bg: #1e2026;
+      --border: #2c2f36;
+      --text: #eaecef;
+      --text-secondary: #b7bdc6;
+      --success: #02c076;
+      --error: #f6465d;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 550px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      padding: 24px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+      color: var(--primary);
+    }
+    
+    .section {
+      margin-bottom: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--background);
+      color: var(--text);
+      font-size: 16px;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    button {
+      background-color: var(--primary);
+      color: var(--background);
+      border: none;
+      border-radius: 4px;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .wallet-info {
+      background: var(--background);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+    }
+    
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .status.success {
+      background: rgba(2, 192, 118, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+      display: block;
+    }
+    
+    .status.error {
+      background: rgba(246, 70, 93, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      display: block;
+    }
+    
+    .status.info {
+      background: rgba(240, 185, 11, 0.1);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      display: block;
+    }
+    
+    .token-info {
+      margin-top: 16px;
+      background: var(--background);
+      border-radius: 4px;
+      padding: 12px;
+      display: none;
+    }
+    
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    
+    .info-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .info-label {
+      color: var(--text-secondary);
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .small-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .flex {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .mt-2 {
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BSC代币授权工具</h1>
+    
+    <!-- 钱包连接区域 -->
+    <div class="section">
+      <button id="connectWalletBtn">连接钱包</button>
+      
+      <div id="walletInfo" class="wallet-info" style="display: none;">
+        <div class="flex">
+          <div class="info-label">钱包地址:</div>
+          <div id="walletAddress"></div>
+        </div>
+        <div class="flex mt-2">
+          <div class="info-label">网络:</div>
+          <div id="networkInfo"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 授权表单 -->
+    <div id="approveForm" class="section" style="display: none;">
+      <div class="form-group">
+        <label for="tokenAddress">代币合约地址</label>
+        <input type="text" id="tokenAddress" placeholder="输入代币合约地址，例如：0x783c3f003f172c6Ac5AC700218a357d2D66Ee2a2" value="0x783c3f003f172c6Ac5AC700218a357d2D66Ee2a2">
+        <p class="small-text">您将要授权的代币地址</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="spenderAddress">授权给地址</label>
+        <input type="text" id="spenderAddress" placeholder="输入授权接收方地址，例如：0x3dC226Bd521D2cfB3A547Ae19AaFe1CE359cf7B6" value="0x3dC226Bd521D2cfB3A547Ae19AaFe1CE359cf7B6">
+        <p class="small-text">默认为 Alpha Bot 合约</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="approveAmount">授权数量</label>
+        <div class="flex">
+          <input type="text" id="approveAmount" placeholder="输入授权数量" value="115792089237316195423570985008687907853269984665640564039457584007913129639935">
+          <button id="maxBtn" style="width: auto; margin-left: 8px; padding: 10px;">最大值</button>
+        </div>
+        <p class="small-text">输入整数值，将根据代币精度自动转换</p>
+      </div>
+      
+      <div id="tokenInfo" class="token-info">
+        <h3 style="margin-bottom: 12px;">代币信息</h3>
+        <div class="info-item">
+          <span class="info-label">符号:</span>
+          <span id="tokenSymbol">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">精度:</span>
+          <span id="tokenDecimals">--</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">余额:</span>
+          <span id="tokenBalance">--</span>
+        </div>
+      </div>
+      
+      <button id="checkTokenBtn" class="mt-2">检查代币信息</button>
+      <button id="approveBtn" class="mt-2" style="margin-top: 16px; display: none;">授权代币</button>
+    </div>
+    
+    <!-- 状态显示区域 -->
+    <div id="statusMessage" class="status"></div>
+  </div>
+
+  <script>
+    // ERC20代币ABI
+    const ERC20_ABI = [
+      {
+        "inputs": [
+          { "name": "spender", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "approve",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "name": "account", "type": "address" }
+        ],
+        "name": "balanceOf",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{ "name": "", "type": "uint8" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [{ "name": "", "type": "string" }],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          { "name": "owner", "type": "address" },
+          { "name": "spender", "type": "address" }
+        ],
+        "name": "allowance",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+    
+    // 常量
+    const BSC_CHAIN_ID = '0x38'; // BSC链ID (56十进制)
+    const BSC_RPC_URL = 'https://bsc-dataseed.binance.org/';
+    
+    // 变量
+    let provider = null;
+    let signer = null;
+    let userAddress = null;
+    let tokenContract = null;
+    let tokenData = {
+      symbol: null,
+      decimals: null,
+      balance: null
+    };
+
+    // DOM元素
+    const connectWalletBtn = document.getElementById('connectWalletBtn');
+    const walletInfo = document.getElementById('walletInfo');
+    const walletAddressElem = document.getElementById('walletAddress');
+    const networkInfoElem = document.getElementById('networkInfo');
+    const approveForm = document.getElementById('approveForm');
+    const tokenAddressInput = document.getElementById('tokenAddress');
+    const spenderAddressInput = document.getElementById('spenderAddress');
+    const approveAmountInput = document.getElementById('approveAmount');
+    const maxBtn = document.getElementById('maxBtn');
+    const tokenInfo = document.getElementById('tokenInfo');
+    const tokenSymbolElem = document.getElementById('tokenSymbol');
+    const tokenDecimalsElem = document.getElementById('tokenDecimals');
+    const tokenBalanceElem = document.getElementById('tokenBalance');
+    const checkTokenBtn = document.getElementById('checkTokenBtn');
+    const approveBtn = document.getElementById('approveBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    
+    // 检查MetaMask是否安装
+    function checkIfMetaMaskInstalled() {
+      const { ethereum } = window;
+      if (!ethereum || !ethereum.isMetaMask) {
+        showStatus('错误', '请安装MetaMask钱包插件后再使用本工具');
+        connectWalletBtn.disabled = true;
+        return false;
+      }
+      return true;
+    }
+    
+    // 检查是否为BSC网络
+    async function checkIfBscNetwork() {
+      try {
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== BSC_CHAIN_ID) {
+          showStatus('错误', '请将钱包切换至币安智能链 (BSC) 网络后再使用本工具');
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.error('获取链ID出错:', error);
+        return false;
+      }
+    }
+    
+    // 连接钱包
+    async function connectWallet() {
+      if (!checkIfMetaMaskInstalled()) return;
+      
+      try {
+        showStatus('信息', '正在连接钱包...');
+        
+        // 请求账号
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+        
+        // 检查网络
+        const isCorrectNetwork = await checkIfBscNetwork();
+        if (!isCorrectNetwork) {
+          // 尝试切换到BSC网络
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: BSC_CHAIN_ID }],
+            });
+          } catch (switchError) {
+            // 如果BSC网络未添加，则添加
+            if (switchError.code === 4902) {
+              try {
+                await window.ethereum.request({
+                  method: 'wallet_addEthereumChain',
+                  params: [
+                    {
+                      chainId: BSC_CHAIN_ID,
+                      chainName: 'Binance Smart Chain',
+                      nativeCurrency: {
+                        name: 'BNB',
+                        symbol: 'BNB',
+                        decimals: 18
+                      },
+                      rpcUrls: [BSC_RPC_URL],
+                      blockExplorerUrls: ['https://bscscan.com/'],
+                    },
+                  ],
+                });
+              } catch (addError) {
+                console.error('添加BSC网络失败:', addError);
+                showStatus('错误', '无法添加BSC网络，请手动在钱包中添加');
+                return;
+              }
+            } else {
+              console.error('切换网络失败:', switchError);
+              showStatus('错误', '切换到BSC网络失败');
+              return;
+            }
+          }
+        }
+        
+        // 初始化provider和signer
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        
+        // 更新UI显示
+        walletAddressElem.textContent = shortenAddress(userAddress);
+        networkInfoElem.textContent = 'BSC';
+        walletInfo.style.display = 'block';
+        approveForm.style.display = 'block';
+        connectWalletBtn.textContent = '已连接';
+        connectWalletBtn.disabled = true;
+        
+        showStatus('成功', '钱包连接成功！');
+        
+        // 监听账户变化
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        // 监听链变化
+        window.ethereum.on('chainChanged', handleChainChanged);
+        
+      } catch (error) {
+        console.error('连接钱包错误:', error);
+        showStatus('错误', '连接钱包失败: ' + error.message);
+      }
+    }
+    
+    // 处理账户变化
+    function handleAccountsChanged(accounts) {
+      if (accounts.length === 0) {
+        // 用户断开了连接
+        resetApp();
+        showStatus('错误', '钱包已断开连接');
+      } else if (accounts[0] !== userAddress) {
+        // 用户切换了账号
+        userAddress = accounts[0];
+        walletAddressElem.textContent = shortenAddress(userAddress);
+        showStatus('信息', '钱包账号已变更');
+        // 如果有代币信息，重新获取余额
+        if (tokenContract) {
+          checkTokenInfo();
+        }
+      }
+    }
+    
+    // 处理链变化
+    function handleChainChanged() {
+      // 刷新页面是最简单的处理方式
+      window.location.reload();
+    }
+    
+    // 重置应用状态
+    function resetApp() {
+      provider = null;
+      signer = null;
+      userAddress = null;
+      tokenContract = null;
+      tokenData = { symbol: null, decimals: null, balance: null };
+      
+      walletInfo.style.display = 'none';
+      approveForm.style.display = 'none';
+      tokenInfo.style.display = 'none';
+      approveBtn.style.display = 'none';
+      
+      connectWalletBtn.textContent = '连接钱包';
+      connectWalletBtn.disabled = false;
+    }
+    
+    // 显示状态信息
+    function showStatus(type, message) {
+      statusMessage.textContent = message;
+      statusMessage.className = 'status';
+      
+      if (type === '成功') {
+        statusMessage.classList.add('success');
+      } else if (type === '错误') {
+        statusMessage.classList.add('error');
+      } else {
+        statusMessage.classList.add('info');
+      }
+      
+      // 5秒后自动清除信息（仅针对成功和信息类型）
+      if (type === '成功' || type === '信息') {
+        setTimeout(() => {
+          statusMessage.style.display = 'none';
+        }, 5000);
+      }
+    }
+    
+    // 缩短地址显示
+    function shortenAddress(address) {
+      return address.slice(0, 6) + '...' + address.slice(-4);
+    }
+    
+    // 检查代币信息
+    async function checkTokenInfo() {
+      try {
+        const tokenAddress = tokenAddressInput.value.trim();
+        
+        if (!ethers.utils.isAddress(tokenAddress)) {
+          showStatus('错误', '无效的代币地址');
+          return;
+        }
+        
+        showStatus('信息', '正在获取代币信息...');
+        
+        // 创建代币合约实例
+        tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        
+        // 获取代币信息
+        const [symbol, decimals, balance] = await Promise.all([
+          tokenContract.symbol(),
+          tokenContract.decimals(),
+          tokenContract.balanceOf(userAddress)
+        ]);
+        
+        // 保存代币信息
+        tokenData.symbol = symbol;
+        tokenData.decimals = decimals;
+        tokenData.balance = balance;
+        
+        // 更新UI
+        tokenSymbolElem.textContent = symbol;
+        tokenDecimalsElem.textContent = decimals;
+        tokenBalanceElem.textContent = `${ethers.utils.formatUnits(balance, decimals)} ${symbol}`;
+        
+        tokenInfo.style.display = 'block';
+        approveBtn.style.display = 'block';
+        
+        showStatus('成功', `找到代币 ${symbol}`);
+        
+      } catch (error) {
+        console.error('获取代币信息错误:', error);
+        showStatus('错误', '获取代币信息失败: ' + error.message);
+      }
+    }
+    
+    // 执行授权
+    async function approveToken() {
+      try {
+        const tokenAddress = tokenAddressInput.value.trim();
+        const spenderAddress = spenderAddressInput.value.trim();
+        const approveAmount = approveAmountInput.value.trim();
+        
+        // 验证地址格式
+        if (!ethers.utils.isAddress(tokenAddress)) {
+          showStatus('错误', '无效的代币地址');
+          return;
+        }
+        
+        if (!ethers.utils.isAddress(spenderAddress)) {
+          showStatus('错误', '无效的授权接收方地址');
+          return;
+        }
+        
+        // 验证金额
+        if (!approveAmount || isNaN(approveAmount)) {
+          showStatus('错误', '请输入有效的授权金额');
+          return;
+        }
+        
+        // 禁用按钮防止重复提交
+        approveBtn.disabled = true;
+        showStatus('信息', '正在发送授权交易...');
+        
+        // 创建签名合约
+        const tokenContractWithSigner = tokenContract.connect(signer);
+        
+        // 发送授权交易
+        const tx = await tokenContractWithSigner.approve(
+          spenderAddress,
+          approveAmount
+        );
+        
+        showStatus('信息', `授权交易已发送，交易哈希: ${tx.hash}`);
+        
+        // 等待交易确认
+        const receipt = await tx.wait();
+        
+        approveBtn.disabled = false;
+        showStatus('成功', `授权成功！交易已确认，区块: ${receipt.blockNumber}`);
+        
+      } catch (error) {
+        console.error('授权错误:', error);
+        showStatus('错误', '授权失败: ' + (error.reason || error.message));
+        approveBtn.disabled = false;
+      }
+    }
+    
+    // 设置最大授权量
+    function setMaxApproveAmount() {
+      approveAmountInput.value = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+    }
+    
+    // 初始化应用
+    function initApp() {
+      // 检查是否安装了MetaMask
+      checkIfMetaMaskInstalled();
+      
+      // 绑定事件
+      connectWalletBtn.addEventListener('click', connectWallet);
+      checkTokenBtn.addEventListener('click', checkTokenInfo);
+      approveBtn.addEventListener('click', approveToken);
+      maxBtn.addEventListener('click', setMaxApproveAmount);
+      
+      // 如果MetaMask已经连接，直接初始化
+      if (window.ethereum && window.ethereum.isConnected()) {
+        window.ethereum.request({ method: 'eth_accounts' })
+          .then(accounts => {
+            if (accounts.length > 0) {
+              connectWallet();
+            }
+          })
+          .catch(console.error);
+      }
+    }
+    
+    // 页面加载完成后初始化应用
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html> 
